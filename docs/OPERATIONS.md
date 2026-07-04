@@ -14,6 +14,7 @@ Check it:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\status.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\codex-smoke.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\agent-torture.ps1
 ```
 
 Then open Codex. New sessions should show:

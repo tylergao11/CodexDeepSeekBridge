@@ -15,7 +15,8 @@
     "install": "powershell -ExecutionPolicy Bypass -File scripts/install.ps1",
     "restore": "powershell -ExecutionPolicy Bypass -File scripts/one-key-chatgpt-default.ps1",
     "verify": "powershell -ExecutionPolicy Bypass -File scripts/verify.ps1",
-    "smoke": "powershell -ExecutionPolicy Bypass -File scripts/codex-smoke.ps1"
+    "smoke": "powershell -ExecutionPolicy Bypass -File scripts/codex-smoke.ps1",
+    "torture": "powershell -ExecutionPolicy Bypass -File scripts/agent-torture.ps1"
   },
   "engines": {
     "node": ">=18"

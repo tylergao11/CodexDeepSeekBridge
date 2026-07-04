@@ -92,6 +92,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\codex-smoke.ps1
 
 The smoke script locates the usable Codex executable under the local Codex install and injects the user-level `DEEPSEEK_API_KEY` into the current process. This avoids stale PowerShell environment blocks and WindowsApps launcher permission issues.
 
+For a stronger agent-runtime test:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\agent-torture.ps1
+```
+
+This launches real Codex agent runs through the bridge in a temporary workspace and verifies read, write, patch, shell command, error-recovery, and multi-step context behavior.
+
 ## Restore
 
 Restore from a specific backup:

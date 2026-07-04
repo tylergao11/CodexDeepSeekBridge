@@ -1,6 +1,7 @@
 param(
   [string]$Prompt = "只输出 OK，不要解释。",
-  [string]$Sandbox = "read-only"
+  [string]$Sandbox = "read-only",
+  [string]$WorkDir = ""
 )
 
 . "$PSScriptRoot\common.ps1"
@@ -12,4 +13,5 @@ if ([string]::IsNullOrWhiteSpace($key)) {
 
 $env:DEEPSEEK_API_KEY = $key
 $codexExe = Get-CodexExe
-& $codexExe -a never -s $Sandbox -C (Get-ProjectRoot) exec --skip-git-repo-check $Prompt
+$cwd = if ([string]::IsNullOrWhiteSpace($WorkDir)) { Get-ProjectRoot } else { (Resolve-Path $WorkDir).Path }
+& $codexExe -a never -s $Sandbox -C $cwd exec --skip-git-repo-check $Prompt
