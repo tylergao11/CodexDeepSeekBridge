@@ -1,0 +1,24 @@
+{
+  "name": "codex-deepseek-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Responses-to-DeepSeek bridge for Codex Desktop/CLI.",
+  "main": "src/proxy.js",
+  "scripts": {
+    "check": "node --check src/proxy.js",
+    "test": "node tests/proxy-contract.test.js",
+    "apikey": "powershell -ExecutionPolicy Bypass -File scripts/one-key-api-key.ps1",
+    "chatgpt": "powershell -ExecutionPolicy Bypass -File scripts/one-key-chatgpt-default.ps1",
+    "start": "powershell -ExecutionPolicy Bypass -File scripts/start.ps1",
+    "stop": "powershell -ExecutionPolicy Bypass -File scripts/stop.ps1",
+    "status": "powershell -ExecutionPolicy Bypass -File scripts/status.ps1",
+    "install": "powershell -ExecutionPolicy Bypass -File scripts/install.ps1",
+    "restore": "powershell -ExecutionPolicy Bypass -File scripts/one-key-chatgpt-default.ps1",
+    "verify": "powershell -ExecutionPolicy Bypass -File scripts/verify.ps1",
+    "smoke": "powershell -ExecutionPolicy Bypass -File scripts/codex-smoke.ps1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}
