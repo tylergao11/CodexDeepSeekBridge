@@ -128,7 +128,7 @@ Invoke-AgentCase -Name "06_multistep_context" -Sandbox "workspace-write" -Prompt
   $file = Join-Path $tortureRoot "SUMMARY.md"
   if (!(Test-Path $file)) { throw "SUMMARY.md was not created." }
   $text = Get-Content -LiteralPath $file -Raw
-  if ($text -notmatch "add" -or $text -notmatch "npm test" -or $text -notmatch "bridge-agent-write-ok") {
+  if ($text -notmatch "add" -or $text -notmatch "(npm test|node calc\.test\.js)" -or $text -notmatch "bridge-agent-write-ok") {
     throw "SUMMARY.md missing expected context."
   }
 }
