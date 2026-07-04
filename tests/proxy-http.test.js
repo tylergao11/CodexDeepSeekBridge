@@ -204,6 +204,10 @@ async function main() {
     assert.strictEqual(bad.body.error.type, 'deepseek_api_error');
     assert.strictEqual(bad.body.error.upstream_status, 422);
 
+    const badStream = await requestJson(`${proxyUrl}/v1/responses`, { model: 'deepseek-v4-pro', input: 'force-error', stream: true });
+    assert.strictEqual(badStream.status, 422);
+    assert.strictEqual(badStream.body.error.type, 'deepseek_api_error');
+
     assert(upstreamRequests.some((req) => req.thinking?.type === 'enabled' && req.reasoning_effort === 'max'));
   } finally {
     proxy.close();

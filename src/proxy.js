@@ -436,7 +436,7 @@ function postDeepSeek(json) {
   });
 }
 
-function postDeepSeekStream(json, onChunk) {
+function postDeepSeekStream(json, onChunk, onOpen) {
   const url = new URL('/chat/completions', DEEPSEEK_BASE_URL);
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error('DEEPSEEK_API_KEY is not set');
@@ -455,6 +455,9 @@ function postDeepSeekStream(json, onChunk) {
     }, (resp) => {
       let buffer = '';
       const errorChunks = [];
+      if (resp.statusCode >= 200 && resp.statusCode < 300 && onOpen) {
+        onOpen();
+      }
       resp.on('data', (chunk) => {
         if (resp.statusCode < 200 || resp.statusCode >= 300) {
           errorChunks.push(chunk);
@@ -603,12 +606,17 @@ async function streamResponseFromChat(body, chatReq, res) {
     parallel_tool_calls: body.parallel_tool_calls !== false,
   };
 
-  res.writeHead(200, {
-    'content-type': 'text/event-stream; charset=utf-8',
-    'cache-control': 'no-cache, no-transform',
-    connection: 'keep-alive',
-  });
-  writeSse(res, 'response.created', { response: responseBase });
+  let streamOpened = false;
+  function openResponseStream() {
+    if (streamOpened) return;
+    streamOpened = true;
+    res.writeHead(200, {
+      'content-type': 'text/event-stream; charset=utf-8',
+      'cache-control': 'no-cache, no-transform',
+      connection: 'keep-alive',
+    });
+    writeSse(res, 'response.created', { response: responseBase });
+  }
 
   let partAdded = false;
   let outputAdded = false;
@@ -662,7 +670,9 @@ async function streamResponseFromChat(body, chatReq, res) {
       text += contentDelta;
       writeSse(res, 'response.output_text.delta', { item_id: msgId, output_index: 0, content_index: 0, delta: contentDelta });
     }
-  });
+  }, openResponseStream);
+
+  openResponseStream();
 
   let finalOutput;
   const returnedToolCalls = [...toolCalls.values()];
