@@ -99,6 +99,17 @@ async function main() {
       sendJson(res, 422, { error: { message: 'mock invalid request' } });
       return;
     }
+    if (body.stream && last.includes('stream-two-tools')) {
+      sendSse(res, [
+        { choices: [{ delta: { reasoning_content: 'hidden' } }] },
+        { choices: [{ delta: { tool_calls: [
+          { index: 0, id: 'call_stream_a', function: { name: 'shell_command', arguments: '{"command":"echo a"}' } },
+          { index: 1, id: 'call_stream_b', function: { name: 'shell_command', arguments: '{"command":"echo b"}' } },
+        ] } }] },
+        { usage: { prompt_tokens: 14, completion_tokens: 4, total_tokens: 18, prompt_cache_hit_tokens: 8, prompt_cache_miss_tokens: 6 } },
+      ]);
+      return;
+    }
     if (body.stream && last.includes('stream-tool')) {
       sendSse(res, [
         { choices: [{ delta: { reasoning_content: 'hidden' } }] },
@@ -198,6 +209,17 @@ async function main() {
     assert.strictEqual(streamTool.status, 200);
     assert(streamTool.raw.includes('response.function_call_arguments.done'));
     assert(streamTool.raw.includes('call_stream_a'));
+
+    const streamTwoTools = await requestSse(`${proxyUrl}/v1/responses`, {
+      model: 'deepseek-v4-pro',
+      input: 'please stream-two-tools',
+      stream: true,
+      tools: [{ type: 'shell_command', input_schema: { type: 'object', properties: {} } }],
+    });
+    assert.strictEqual(streamTwoTools.status, 200);
+    assert(streamTwoTools.raw.includes('call_stream_a'));
+    assert(streamTwoTools.raw.includes('call_stream_b'));
+    assert.strictEqual((streamTwoTools.raw.match(/^event: response\.function_call_arguments\.done/gm) || []).length, 2);
 
     const bad = await requestJson(`${proxyUrl}/v1/responses`, { model: 'deepseek-v4-pro', input: 'force-error' });
     assert.strictEqual(bad.status, 422);
