@@ -5,15 +5,15 @@ $proxyDir = Get-ProxyInstallDir $codexHome
 $proxyFile = Join-Path $proxyDir "proxy.js"
 $sourceProxy = Join-Path (Get-ProjectRoot) "src\proxy.js"
 $defaults = Get-DeepSeekCodexDefaults
-New-Item -ItemType Directory -Force -Path $proxyDir | Out-Null
-Copy-Item -LiteralPath $sourceProxy -Destination $proxyFile -Force
-Write-Output "Deployed proxy.js to $proxyFile"
-
 $existing = Get-ProxyProcesses
 if ($existing.Count -gt 0) {
   Write-Output "DeepSeek bridge already running: pid=$($existing.Id -join ',')"
   exit 0
 }
+
+New-Item -ItemType Directory -Force -Path $proxyDir | Out-Null
+Copy-Item -LiteralPath $sourceProxy -Destination $proxyFile -Force
+Write-Output "Deployed proxy.js to $proxyFile"
 
 $key = Get-DeepSeekApiKey
 if ([string]::IsNullOrWhiteSpace($key)) {
@@ -30,4 +30,22 @@ $psi.EnvironmentVariables["DEEPSEEK_API_KEY"] = $key
 $psi.EnvironmentVariables["DEEPSEEK_MODEL"] = $defaults.Model
 $process = [System.Diagnostics.Process]::Start($psi)
 Start-Sleep -Milliseconds 800
+if ($process.HasExited) {
+  throw "DeepSeek bridge process exited during startup: pid=$($process.Id) exitCode=$($process.ExitCode)"
+}
+
+$ready = $false
+for ($i = 0; $i -lt 20; $i++) {
+  try {
+    Invoke-RestMethod -Uri "$($defaults.BaseUrl)/models" -Method Get -TimeoutSec 1 | Out-Null
+    $ready = $true
+    break
+  } catch {
+    Start-Sleep -Milliseconds 250
+  }
+}
+if (-not $ready) {
+  try { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue } catch {}
+  throw "DeepSeek bridge did not become ready at $($defaults.BaseUrl)."
+}
 Write-Output "DeepSeek bridge started: pid=$($process.Id) url=$($defaults.BaseUrl)"

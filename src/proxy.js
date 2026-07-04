@@ -173,6 +173,10 @@ function deepSeekErrorFromResponse(status, raw) {
   return new DeepSeekApiError(status, detail, deepSeekErrorRemedy(status));
 }
 
+function requestModuleForUrl(url) {
+  return url.protocol === 'http:' ? http : https;
+}
+
 function proxyErrorPayload(err) {
   if (err instanceof DeepSeekApiError) {
     return {
@@ -400,8 +404,9 @@ function postDeepSeek(json) {
   if (!apiKey) throw new Error('DEEPSEEK_API_KEY is not set');
   const body = JSON.stringify(json);
   const timeoutMs = Number(process.env.DEEPSEEK_TIMEOUT_MS || 300000);
+  const transport = requestModuleForUrl(url);
   return new Promise((resolve, reject) => {
-    const req = https.request(url, {
+    const req = transport.request(url, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${apiKey}`,
@@ -437,8 +442,9 @@ function postDeepSeekStream(json, onChunk) {
   if (!apiKey) throw new Error('DEEPSEEK_API_KEY is not set');
   const body = JSON.stringify({ ...json, stream: true });
   const timeoutMs = Number(process.env.DEEPSEEK_TIMEOUT_MS || 300000);
+  const transport = requestModuleForUrl(url);
   return new Promise((resolve, reject) => {
-    const req = https.request(url, {
+    const req = transport.request(url, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${apiKey}`,
@@ -781,7 +787,9 @@ function startServer() {
   const server = createServer();
   server.listen(PORT, HOST, () => {
     log(`listening on http://${HOST}:${PORT}/v1 -> ${DEEPSEEK_BASE_URL}`);
-    console.log(`DeepSeek Responses proxy listening on http://${HOST}:${PORT}/v1`);
+    if (process.env.DEEPSEEK_PROXY_CONSOLE === '1') {
+      console.log(`DeepSeek Responses proxy listening on http://${HOST}:${PORT}/v1`);
+    }
   });
   return server;
 }
@@ -799,6 +807,7 @@ module.exports = {
   inputHasFunctionCall,
   modelCard,
   normalizeDeepSeekModel,
+  requestModuleForUrl,
   responseFromChat,
   sseEventsForResponse,
   usageFromDeepSeek,

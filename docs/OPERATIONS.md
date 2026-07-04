@@ -15,6 +15,7 @@ Check it:
 powershell -ExecutionPolicy Bypass -File .\scripts\status.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\codex-smoke.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\agent-torture.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\agent-concurrency.ps1
 ```
 
 Then open Codex. New sessions should show:
@@ -30,6 +31,8 @@ reasoning effort: xhigh
 ```powershell
 npm run check
 npm test
+npm run test:http
+npm run test:system
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\verify.ps1
 ```

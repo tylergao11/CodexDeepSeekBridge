@@ -54,6 +54,8 @@ If the machine already has a DeepSeek key in `ANTHROPIC_AUTH_TOKEN`, you can reu
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -UseExistingAnthropicToken
 ```
 
+For isolated tests, `install.ps1 -NoPersistApiKey` uses the supplied key only for the current PowerShell process and does not write it to the user environment.
+
 The installer backs up `%USERPROFILE%\.codex\config.toml` before editing it. If `CODEX_HOME` is set, scripts use that instead.
 
 Default install config:
@@ -84,6 +86,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\stop.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\verify.ps1
 ```
 
+`verify.ps1` runs syntax checks, offline proxy contract tests, a local HTTP mock-upstream integration test, a temporary `CODEX_HOME` install/restore test, bridge status, and Codex doctor.
+
 For a real Codex smoke test:
 
 ```powershell
@@ -96,9 +100,10 @@ For a stronger agent-runtime test:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\agent-torture.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\agent-concurrency.ps1
 ```
 
-This launches real Codex agent runs through the bridge in a temporary workspace and verifies read, write, patch, shell command, error-recovery, and multi-step context behavior.
+These launch real Codex agent runs through the bridge in temporary workspaces and verify read, write, patch, shell command, error-recovery, multi-step context, and concurrent agent behavior.
 
 ## Restore
 

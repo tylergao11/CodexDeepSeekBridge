@@ -1,6 +1,7 @@
 param(
   [string]$ApiKey = "",
-  [switch]$UseExistingAnthropicToken
+  [switch]$UseExistingAnthropicToken,
+  [switch]$NoPersistApiKey
 )
 
 . "$PSScriptRoot\common.ps1"
@@ -23,7 +24,11 @@ if ([string]::IsNullOrWhiteSpace($ApiKey) -and $UseExistingAnthropicToken) {
   $ApiKey = [Environment]::GetEnvironmentVariable("ANTHROPIC_AUTH_TOKEN", "User")
 }
 if (![string]::IsNullOrWhiteSpace($ApiKey)) {
-  Set-DeepSeekApiKey $ApiKey
+  if ($NoPersistApiKey) {
+    $env:DEEPSEEK_API_KEY = $ApiKey
+  } else {
+    Set-DeepSeekApiKey $ApiKey
+  }
 }
 if ([string]::IsNullOrWhiteSpace((Get-DeepSeekApiKey))) {
   throw "DEEPSEEK_API_KEY is not set. Pass -ApiKey or set the user environment variable first."

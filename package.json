@@ -7,6 +7,8 @@
   "scripts": {
     "check": "node --check src/proxy.js",
     "test": "node tests/proxy-contract.test.js",
+    "test:http": "node tests/proxy-http.test.js",
+    "test:system": "powershell -ExecutionPolicy Bypass -File scripts/system-torture.ps1",
     "apikey": "powershell -ExecutionPolicy Bypass -File scripts/one-key-api-key.ps1",
     "chatgpt": "powershell -ExecutionPolicy Bypass -File scripts/one-key-chatgpt-default.ps1",
     "start": "powershell -ExecutionPolicy Bypass -File scripts/start.ps1",
@@ -16,7 +18,8 @@
     "restore": "powershell -ExecutionPolicy Bypass -File scripts/one-key-chatgpt-default.ps1",
     "verify": "powershell -ExecutionPolicy Bypass -File scripts/verify.ps1",
     "smoke": "powershell -ExecutionPolicy Bypass -File scripts/codex-smoke.ps1",
-    "torture": "powershell -ExecutionPolicy Bypass -File scripts/agent-torture.ps1"
+    "torture": "powershell -ExecutionPolicy Bypass -File scripts/agent-torture.ps1",
+    "torture:concurrent": "powershell -ExecutionPolicy Bypass -File scripts/agent-concurrency.ps1"
   },
   "engines": {
     "node": ">=18"

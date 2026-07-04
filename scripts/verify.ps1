@@ -4,6 +4,8 @@ $projectRoot = Get-ProjectRoot
 $node = Get-CodexRuntimeNode
 & $node --check (Join-Path $projectRoot "src\proxy.js")
 & $node (Join-Path $projectRoot "tests\proxy-contract.test.js")
+& $node (Join-Path $projectRoot "tests\proxy-http.test.js")
+& "$PSScriptRoot\system-torture.ps1"
 
 $defaults = Get-DeepSeekCodexDefaults
 $configPath = Join-Path (Get-CodexHome) "config.toml"
