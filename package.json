@@ -20,7 +20,9 @@
     "smoke": "powershell -ExecutionPolicy Bypass -File scripts/codex-smoke.ps1",
     "torture": "powershell -ExecutionPolicy Bypass -File scripts/agent-torture.ps1",
     "torture:concurrent": "powershell -ExecutionPolicy Bypass -File scripts/agent-concurrency.ps1",
-    "torture:soak": "powershell -ExecutionPolicy Bypass -File scripts/agent-soak.ps1"
+    "torture:soak": "powershell -ExecutionPolicy Bypass -File scripts/agent-soak.ps1",
+    "token": "node scripts/token-usage.js",
+    "token:simple": "node scripts/token-usage.js --simple"
   },
   "engines": {
     "node": ">=18"
