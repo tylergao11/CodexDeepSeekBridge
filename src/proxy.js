@@ -128,8 +128,8 @@ function modelCard(id, displayName) {
     supported_reasoning_levels: SUPPORTED_REASONING_LEVELS,
     object: 'model',
     owned_by: 'deepseek',
-    context_window: 524288,
-    max_context_window: 524288,
+    context_window: 262144,
+    max_context_window: 262144,
     max_completion_tokens: 4096,
     supports_parallel_tool_calls: true,
     supports_reasoning_summaries: true,
@@ -138,7 +138,7 @@ function modelCard(id, displayName) {
     default_verbosity: 'low',
     shell_type: 'shell_command',
     web_search_tool_type: 'text',
-    truncation_policy: { mode: 'tokens', limit: 524288 },
+    truncation_policy: { mode: 'tokens', limit: 262144 },
     supported_in_api: true,
     visibility: 'list',
     additional_speed_tiers: [],
@@ -1061,6 +1061,12 @@ function buildChatRequest(body) {
     }
     messages.push(...convertInputItems(body.input));
   }
+
+  // DIAGNOSTIC: log message prefix for cache debugging
+  const msgSample = messages.slice(0, Math.min(3, messages.length));
+  const msgPrefixHash = require('crypto').createHash('sha256').update(JSON.stringify(msgSample)).digest('hex').slice(0,12);
+  const msgFullHash = require('crypto').createHash('sha256').update(JSON.stringify(messages)).digest('hex').slice(0,12);
+  log('DIAG_MSG msgs=' + messages.length + ' instr_len=' + (body.instructions ? String(body.instructions).length : 0) + ' prefix_hash=' + msgPrefixHash + ' full_hash=' + msgFullHash);
 
   const req = {
     model: normalizeDeepSeekModel(body.model),
