@@ -94,6 +94,12 @@ let sequenceNumber = 0;
 const KNOWN_DEEPSEEK_MODELS = new Set(['deepseek-v4-pro', 'deepseek-v4-flash']);
 const MAX_STORED_RESPONSES = Number(process.env.DEEPSEEK_RESPONSES_STORE_LIMIT || 256);
 const MAX_TOOLS = Number(process.env.DEEPSEEK_MAX_TOOLS || 128);
+// Tool snapshot: Codex sends variable tool sets (162 tools on first request,
+// 16 on subsequent ones — confirmed from production logs). Each switch nukes
+// DeepSeek's KV cache. Fix: freeze the largest set ever seen and reuse it.
+let _stableToolSnapshot = null;
+let _stableToolSnapshotSize = 0;
+let _stableToolReverseMap = null;
 const UNSUPPORTED_IMAGE_NOTICE = '[Image omitted: DeepSeek image input is not supported by this bridge. Please describe the image or paste OCR text.]';
 
 // DeepSeek thinking mode only supports two effective effort levels:
@@ -242,6 +248,11 @@ const _cacheStats = {
   totalCacheMiss: 0,
   prefixChanges: 0,
 };
+
+// Turn-to-turn drift tracking: compare per-component hashes across requests.
+let _lastInstrHash = '';
+let _lastToolsHash = '';
+let _lastInjectedHash = '';
 
 function persistStore() {
   // Serialize Maps as arrays for JSON storage
@@ -1114,11 +1125,12 @@ function buildChatRequest(body, preConvertedTools) {
     messages.push(...convertInputItems(body.input));
   }
 
-  // DIAGNOSTIC: log message prefix for cache debugging
+  // DIAGNOSTIC: per-component hashes (split across here and tools declaration below).
   const msgSample = messages.slice(0, Math.min(3, messages.length));
-  const msgPrefixHash = require('crypto').createHash('sha256').update(JSON.stringify(msgSample)).digest('hex').slice(0,12);
-  const msgFullHash = require('crypto').createHash('sha256').update(JSON.stringify(messages)).digest('hex').slice(0,12);
-  log('DIAG_MSG msgs=' + messages.length + ' instr_len=' + (body.instructions ? String(body.instructions).length : 0) + ' prefix_hash=' + msgPrefixHash + ' full_hash=' + msgFullHash);
+  const msgPrefixHash = stableHash(JSON.stringify(msgSample));
+  const msgFullHash = stableHash(JSON.stringify(messages));
+  const instrHash = stableHash(String(body.instructions || ''));
+  const injectedHash = stableHash(injected || '');
 
   const req = {
     model: normalizeDeepSeekModel(body.model),
@@ -1145,6 +1157,17 @@ function buildChatRequest(body, preConvertedTools) {
   req.thinking = { type: 'enabled' };
 
   const tools = preConvertedTools || convertTools(body.tools);
+  const toolsHash = stableHash(JSON.stringify(tools || []));
+  // Turn-to-turn drift detection: which component changed since last request?
+  const driftParts = [];
+  if (_lastInstrHash && _lastInstrHash !== instrHash) driftParts.push('INSTR');
+  if (_lastToolsHash && _lastToolsHash !== toolsHash) driftParts.push('TOOLS');
+  if (_lastInjectedHash && _lastInjectedHash !== injectedHash) driftParts.push('INJECTED');
+  const driftTag = driftParts.length > 0 ? ` DRIFT=${driftParts.join(',')}` : '';
+  _lastInstrHash = instrHash;
+  _lastToolsHash = toolsHash;
+  _lastInjectedHash = injectedHash;
+  log('DIAG_MSG msgs=' + messages.length + ' instr_len=' + (body.instructions ? String(body.instructions).length : 0) + ' msg_prefix=' + msgPrefixHash + ' msg_full=' + msgFullHash + ' instr=' + instrHash + ' tools=' + toolsHash + ' injected=' + injectedHash + driftTag);
   // Stash converted tools on the request object so downstream (logUsage/diagnoseCachePrefix)
   // can access the actual DeepSeek-facing tool definitions for accurate cache diagnostics.
   req._convertedTools = tools;
@@ -1356,7 +1379,7 @@ function responseFromChat(body, chatReq, chatResp) {
     stored.push({ role: 'assistant', content: message.content || '' });
   }
   rememberResponse(id, stored, outputItems);
-  const prefixHash = cachePrefixHash(body);
+  const prefixHash = cachePrefixHash(body, chatReq._convertedTools);
   logUsage(id, chatResp.usage, prefixHash, diagnoseCachePrefix(body, prefixHash, chatReq._convertedTools));
   return response;
 }
@@ -1624,7 +1647,7 @@ async function streamResponseFromChat(body, chatReq, res) {
     stored.push({ role: 'assistant', content: text });
   }
   rememberResponse(id, stored, outputItems);
-  const prefixHash = cachePrefixHash(body);
+  const prefixHash = cachePrefixHash(body, chatReq._convertedTools);
   logUsage(id, usage, prefixHash, diagnoseCachePrefix(body, prefixHash, chatReq._convertedTools));
   writeSse(res, 'response.completed', { response });
   res.write('data: [DONE]\n\n');
@@ -1636,10 +1659,33 @@ async function handleResponses(req, res) {
     const body = await readJson(req);
     const requestedModel = body.model || DEEPSEEK_MODEL;
     const model = normalizeDeepSeekModel(requestedModel);
-    // Convert tools FIRST so the cache prefix hash matches what DeepSeek actually receives.
-    // Raw Codex tools may differ in order/structure while producing identical converted tools;
-    // hashing the converted (sorted, compiled) tools gives an accurate KV-cache signal.
-    const convertedTools = convertTools(body.tools);
+    // TOOL SNAPSHOT: production logs show Codex sends 162 tools on first request
+    // but only 16 on subsequent ones. Each switch nukes DeepSeek's KV cache.
+    // Fix: freeze the largest tool set ever seen and reuse it for every request.
+    const freshTools = convertTools(body.tools);
+    const freshSize = freshTools ? freshTools.length : 0;
+    let convertedTools;
+    if (freshSize > 0) {
+      // Request has tools — apply snapshot logic
+      if (!_stableToolSnapshot || freshSize > _stableToolSnapshotSize) {
+        _stableToolSnapshot = freshTools;
+        _stableToolSnapshotSize = freshSize;
+        _stableToolReverseMap = new Map(toolNameReverseMap);
+        convertedTools = freshTools;
+        log(`TOOLS_SNAPSHOT frozen=${freshSize} tools — KV cache prefix locked`);
+      } else {
+        convertedTools = _stableToolSnapshot;
+        toolNameReverseMap = _stableToolReverseMap || new Map();
+        const freshHash = stableHash(JSON.stringify(freshTools));
+        const stableHashVal = stableHash(JSON.stringify(_stableToolSnapshot));
+        if (freshHash !== stableHashVal) {
+          log(`TOOLS_DRIFT current=${freshSize}tools sent=${_stableToolSnapshotSize}tools — bridge using frozen snapshot`);
+        }
+      }
+    } else {
+      // No tools in this request — don't inject, keep snapshot for next tooled request
+      convertedTools = freshTools;
+    }
     const prefixHash = cachePrefixHash(body, convertedTools);
     const rawToolsCount = Array.isArray(body.tools) ? body.tools.length : 0;
     const convertedToolsCount = convertedTools ? convertedTools.length : 0;
